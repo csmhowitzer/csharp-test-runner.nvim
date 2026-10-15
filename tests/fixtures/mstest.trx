@@ -1,0 +1,109 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="e4049159-7748-46a6-9332-f14157a9a01b" name="@bholbertlaptop 2026-10-14 16:48:48" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-14T16:48:48.0898577-04:00" queuing="2026-10-14T16:48:48.0898578-04:00" start="2026-10-14T16:48:47.6803950-04:00" finish="2026-10-14T16:48:48.0946159-04:00" />
+  <TestSettings name="default" id="6aa1cc36-6538-46e3-9c65-b5df15661813">
+    <Deployment runDeploymentRoot="_bholbertlaptop_2026-10-14_16_48_48" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="da88ce74-5b8f-4bf5-8c41-138d634b6877" testId="1636147d-55ff-8962-ac44-2445b88ebfef" testName="AsyncThrows" computerName="bholbertlaptop" duration="00:00:00.0037447" startTime="2026-10-14T16:48:47.9983740-04:00" endTime="2026-10-14T16:48:48.0038879-04:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="da88ce74-5b8f-4bf5-8c41-138d634b6877">
+      <Output>
+        <ErrorInfo>
+          <Message>Test method Sample.MSTest.CalcTests.AsyncThrows threw exception:&#xD;
+System.InvalidOperationException: boom it's broken</Message>
+          <StackTrace>   at Sample.MSTest.CalcTests.AsyncThrows() in /src/MProj/CalcTests.cs:line 19
+   at Microsoft.VisualStudio.TestPlatform.MSTest.TestAdapter.Execution.TestMethodInfo.ExecuteInternalAsync(Object[] arguments, CancellationTokenSource timeoutTokenSource) in /_/src/Adapter/MSTestAdapter.PlatformServices/Execution/TestMethodInfo.Execution.cs:line 150
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="819db42e-ca4b-4e85-b5c2-14af8603c866" testId="1358ecf5-fc7c-859b-8258-416a94beb697" testName="Adds" computerName="bholbertlaptop" duration="00:00:00.0051290" startTime="2026-10-14T16:48:47.9622270-04:00" endTime="2026-10-14T16:48:47.9815560-04:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="819db42e-ca4b-4e85-b5c2-14af8603c866" />
+    <UnitTestResult executionId="8ddf4c12-364e-4eaa-8e0c-781210938e15" testId="1b021d00-0f9c-8b1d-92f9-1245d3f7a645" testName="RowsMixed (1,True)" computerName="bholbertlaptop" duration="00:00:00.0007465" startTime="2026-10-14T16:48:48.0039479-04:00" endTime="2026-10-14T16:48:48.0058818-04:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8ddf4c12-364e-4eaa-8e0c-781210938e15">
+      <Output>
+        <StdOut>checking 1</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="db8222e9-fa77-428a-8078-c99fe8883a8c" testId="1152df45-ac1b-898d-80c4-71a0150d8fa0" testName="Skipped" computerName="bholbertlaptop" startTime="2026-10-14T16:48:48.0065142-04:00" endTime="2026-10-14T16:48:48.0095001-04:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="db8222e9-fa77-428a-8078-c99fe8883a8c">
+      <Output>
+        <ErrorInfo>
+          <Message>not yet</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="07824c71-374f-431e-b4ab-71f1bf179a55" testId="11244590-f026-82be-a093-45a7b8fcb06a" testName="FailsEqual" computerName="bholbertlaptop" duration="00:00:00.0112754" startTime="2026-10-14T16:48:47.9863448-04:00" endTime="2026-10-14T16:48:47.9980039-04:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="07824c71-374f-431e-b4ab-71f1bf179a55">
+      <Output>
+        <ErrorInfo>
+          <Message>Assertion failed. Expected values to be equal.
+
+expected: 5
+actual:   4
+
+Assert.AreEqual(5, 2 + 2)</Message>
+          <StackTrace>   at Sample.MSTest.CalcTests.FailsEqual() in /src/MProj/CalcTests.cs:line 12
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="5cd25d5e-0c7b-4394-b703-4dbd615856d3" testId="1ad5a853-a6aa-83b5-9a6d-a1efe6ba8879" testName="RowsMixed (2,False)" computerName="bholbertlaptop" duration="00:00:00.0004034" startTime="2026-10-14T16:48:48.0060711-04:00" endTime="2026-10-14T16:48:48.0065028-04:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5cd25d5e-0c7b-4394-b703-4dbd615856d3">
+      <Output>
+        <StdOut>checking 2</StdOut>
+        <ErrorInfo>
+          <Message>Assertion failed. Expected values to be equal.
+
+expected: false
+actual:   true
+
+Assert.AreEqual(expected, n == 1 || n == 2)</Message>
+          <StackTrace>   at Sample.MSTest.CalcTests.RowsMixed(Int32 n, Boolean expected) in /src/MProj/CalcTests.cs:line 28
+   at InvokeStub_CalcTests.RowsMixed(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="RowsMixed (1,True)" storage="/src/mproj/bin/debug/net10.0/mproj.dll" id="1b021d00-0f9c-8b1d-92f9-1245d3f7a645">
+      <Execution id="8ddf4c12-364e-4eaa-8e0c-781210938e15" />
+      <TestMethod codeBase="/src/MProj/bin/Debug/net10.0/MProj.dll" adapterTypeName="executor://mstestadapter/v4" className="Sample.MSTest.CalcTests" name="RowsMixed" />
+    </UnitTest>
+    <UnitTest name="FailsEqual" storage="/src/mproj/bin/debug/net10.0/mproj.dll" id="11244590-f026-82be-a093-45a7b8fcb06a">
+      <Execution id="07824c71-374f-431e-b4ab-71f1bf179a55" />
+      <TestMethod codeBase="/src/MProj/bin/Debug/net10.0/MProj.dll" adapterTypeName="executor://mstestadapter/v4" className="Sample.MSTest.CalcTests" name="FailsEqual" />
+    </UnitTest>
+    <UnitTest name="AsyncThrows" storage="/src/mproj/bin/debug/net10.0/mproj.dll" id="1636147d-55ff-8962-ac44-2445b88ebfef">
+      <Execution id="da88ce74-5b8f-4bf5-8c41-138d634b6877" />
+      <TestMethod codeBase="/src/MProj/bin/Debug/net10.0/MProj.dll" adapterTypeName="executor://mstestadapter/v4" className="Sample.MSTest.CalcTests" name="AsyncThrows" />
+    </UnitTest>
+    <UnitTest name="Skipped" storage="/src/mproj/bin/debug/net10.0/mproj.dll" id="1152df45-ac1b-898d-80c4-71a0150d8fa0">
+      <Execution id="db8222e9-fa77-428a-8078-c99fe8883a8c" />
+      <TestMethod codeBase="/src/MProj/bin/Debug/net10.0/MProj.dll" adapterTypeName="executor://mstestadapter/v4" className="Sample.MSTest.CalcTests" name="Skipped" />
+    </UnitTest>
+    <UnitTest name="RowsMixed (2,False)" storage="/src/mproj/bin/debug/net10.0/mproj.dll" id="1ad5a853-a6aa-83b5-9a6d-a1efe6ba8879">
+      <Execution id="5cd25d5e-0c7b-4394-b703-4dbd615856d3" />
+      <TestMethod codeBase="/src/MProj/bin/Debug/net10.0/MProj.dll" adapterTypeName="executor://mstestadapter/v4" className="Sample.MSTest.CalcTests" name="RowsMixed" />
+    </UnitTest>
+    <UnitTest name="Adds" storage="/src/mproj/bin/debug/net10.0/mproj.dll" id="1358ecf5-fc7c-859b-8258-416a94beb697">
+      <Execution id="819db42e-ca4b-4e85-b5c2-14af8603c866" />
+      <TestMethod codeBase="/src/MProj/bin/Debug/net10.0/MProj.dll" adapterTypeName="executor://mstestadapter/v4" className="Sample.MSTest.CalcTests" name="Adds" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="1636147d-55ff-8962-ac44-2445b88ebfef" executionId="da88ce74-5b8f-4bf5-8c41-138d634b6877" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1358ecf5-fc7c-859b-8258-416a94beb697" executionId="819db42e-ca4b-4e85-b5c2-14af8603c866" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1b021d00-0f9c-8b1d-92f9-1245d3f7a645" executionId="8ddf4c12-364e-4eaa-8e0c-781210938e15" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1152df45-ac1b-898d-80c4-71a0150d8fa0" executionId="db8222e9-fa77-428a-8078-c99fe8883a8c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="11244590-f026-82be-a093-45a7b8fcb06a" executionId="07824c71-374f-431e-b4ab-71f1bf179a55" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1ad5a853-a6aa-83b5-9a6d-a1efe6ba8879" executionId="5cd25d5e-0c7b-4394-b703-4dbd615856d3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="6" executed="5" passed="2" failed="3" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>Test 'Skipped' was skipped in the test run.
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

@@ -1,0 +1,290 @@
+*csharp-test-runner.txt*    Run xUnit v3 and MSTest tests with inline results
+
+Author: csharp-test-runner
+License: MIT
+
+                *csharp-test-runner* *csharp-test-runner.nvim* *cstest*
+
+==============================================================================
+CONTENTS                                         *csharp-test-runner-contents*
+
+1. Introduction ................. |csharp-test-runner-introduction|
+2. Installation ................. |csharp-test-runner-installation|
+3. Configuration ................ |csharp-test-runner-configuration|
+4. Commands ..................... |csharp-test-runner-commands|
+5. Functions .................... |csharp-test-runner-functions|
+6. Frameworks ................... |csharp-test-runner-frameworks|
+7. Results ...................... |csharp-test-runner-results|
+8. Output window ................ |csharp-test-runner-output|
+9. Highlights ................... |csharp-test-runner-highlights|
+10. Examples .................... |csharp-test-runner-examples|
+11. Troubleshooting ............. |csharp-test-runner-troubleshooting|
+
+==============================================================================
+1. INTRODUCTION                              *csharp-test-runner-introduction*
+
+csharp-test-runner runs C# tests and shows results next to each test method:
+`✓ 12ms` when a test passes and `✗ 340ms` when it fails. Failures also become
+diagnostics and quickfix entries that point at the failing assertion, and a
+window shows the full message, stack trace and output.
+
+xUnit v3 and MSTest are supported. The framework is detected from each test
+project's `.csproj`, see |csharp-test-runner-frameworks|.
+
+Requirements:
+- Neovim 0.10+
+- The .NET SDK (`dotnet` on PATH)
+- The `c_sharp` tree-sitter parser
+
+==============================================================================
+2. INSTALLATION                              *csharp-test-runner-installation*
+
+lazy.nvim:
+>lua
+{
+  "csmhowitzer/csharp-test-runner.nvim",
+  ft = "cs",
+  cmd = "CSTest",
+  config = function()
+    require("csharp-test-runner").setup({ keymaps = true })
+  end,
+}
+<
+Check the install with `:checkhealth csharp-test-runner`.
+
+==============================================================================
+3. CONFIGURATION                            *csharp-test-runner-configuration*
+
+                                                   *csharp-test-runner.setup()*
+setup({opts})
+    Merges {opts} over the defaults and registers |:CSTest|.
+
+Defaults:
+>lua
+require("csharp-test-runner").setup({
+  build = true,
+  icons = { passed = "✓", failed = "✗", skipped = "○", running = "⋯" },
+  show_duration = true,
+  diagnostics = true,
+  quickfix = { enabled = true, open = true },
+  watch_scope = "file",
+  test_attributes = { "Fact", "Theory", "TestMethod", "DataTestMethod" },
+  framework_overrides = {},
+  extra_args = { xunit = {}, mstest = {} },
+  float = { border = "rounded", width = 0.8, height = 0.6 },
+  keymaps = false,
+  debug = false,
+})
+<
+                                             *csharp-test-runner-opts-build*
+build               When false, `--no-build` is passed to the runner.
+
+                                             *csharp-test-runner-opts-icons*
+icons               Glyphs for passed, failed, skipped and running tests.
+
+show_duration       Show durations next to the result icon.
+
+diagnostics         Publish failed tests as |vim.diagnostic| errors.
+
+                                          *csharp-test-runner-opts-quickfix*
+quickfix            `enabled` puts failures in the quickfix list. `open`
+                    opens it when there are failures. The list is titled
+                    "CSTest" and is replaced on each run, not stacked.
+
+                                       *csharp-test-runner-opts-watch_scope*
+watch_scope         What a watched buffer runs on save: "file" or "project".
+
+                                   *csharp-test-runner-opts-test_attributes*
+test_attributes     Attribute names that mark a test method. Qualified names
+                    (`Xunit.Fact`) and the `Attribute` suffix are accepted.
+
+                               *csharp-test-runner-opts-framework_overrides*
+framework_overrides Map of `.csproj` file name to "xunit" or "mstest", for
+                    projects that detection gets wrong.
+
+extra_args          Extra arguments appended to the xunit or mstest command.
+
+float               Border and size (fractions of the editor) of the output
+                    window.
+
+                                           *csharp-test-runner-opts-keymaps*
+keymaps             false (default) sets no keymaps. true sets the defaults
+                    below. A table overrides individual keys (false disables
+                    one):
+                        smart    <leader>ty
+                        nearest  <leader>tn     file     <leader>tf
+                        project  <leader>tp     all      <leader>ta
+                        output   <leader>to     watch    <leader>tw
+                        stop     <leader>ts
+
+debug               Notify the full command of every run.
+
+==============================================================================
+4. COMMANDS                                      *csharp-test-runner-commands*
+
+                                                                     *:CSTest*
+:CSTest [subcommand]
+    Runs a subcommand. Without one, runs `smart`.
+
+Command               Lua                                 Description
+--------------------  ----------------------------------  ------------------
+`:CSTest smart`         `require("csharp-test-runner").run_smart()`     Cursor, else file
+`:CSTest nearest`       `require("csharp-test-runner").run_nearest()`   Test under cursor
+`:CSTest file`          `require("csharp-test-runner").run_file()`      Classes in file
+`:CSTest project`       `require("csharp-test-runner").run_project()`   File's project
+`:CSTest all`           `require("csharp-test-runner").run_all()`       Whole solution
+`:CSTest output`        `require("csharp-test-runner").output()`        Failure detail
+`:CSTest watch`         `require("csharp-test-runner").toggle_watch()`  Run on save
+`:CSTest stop`          (none)                                Stop the run
+`:CSTest clear`         `require("csharp-test-runner").clear()`         Clear results
+
+                                                *csharp-test-runner-smart*
+smart runs the test method that contains the cursor (see nearest below).
+When the cursor is not inside a test method (on a helper, a field, or a
+blank line between tests) it runs the whole file instead.
+
+                                              *csharp-test-runner-nearest*
+nearest runs the method whose range (attributes included) contains the
+cursor. Every theory or DataRow case of the method runs.
+
+                                                  *csharp-test-runner-all*
+all finds the solution root (the nearest directory above the current file
+with a `.sln` or `.slnx`, else the git root) and runs each xUnit v3 / MSTest
+project under it in turn. `bin` and `obj` are skipped.
+
+                                                *csharp-test-runner-watch*
+watch toggles run-on-save for the current buffer only. See
+|csharp-test-runner-opts-watch_scope|.
+
+Only one run is active at a time. Starting a run cancels the previous one,
+and the previous results stay.
+
+==============================================================================
+5. FUNCTIONS                                    *csharp-test-runner-functions*
+
+run_smart()                                   *csharp-test-runner.run_smart()*
+    Run the test method under the cursor, or the current file when the
+    cursor is not inside a test method.
+
+run_nearest()                               *csharp-test-runner.run_nearest()*
+    Run the test method under the cursor.
+
+run_file({bufnr})                              *csharp-test-runner.run_file()*
+    Run every test class in {bufnr} (default: current buffer).
+
+run_project({bufnr})                        *csharp-test-runner.run_project()*
+    Run the test project that owns {bufnr}.
+
+run_all()                                       *csharp-test-runner.run_all()*
+    Run every test project under the solution root.
+
+output({as_split})                               *csharp-test-runner.output()*
+    Open the failure detail for the test under the cursor. When the cursor
+    is not on a test with results, show every failure of the last run.
+    {as_split} opens a split instead of a float.
+
+toggle_watch({bufnr})                      *csharp-test-runner.toggle_watch()*
+    Toggle run-on-save for {bufnr}.
+
+clear()                                           *csharp-test-runner.clear()*
+    Stop any run and clear results, marks, diagnostics and the CSTest
+    quickfix list.
+
+==============================================================================
+6. FRAMEWORKS                                  *csharp-test-runner-frameworks*
+
+The nearest `.csproj` above a file decides how it runs:
+
+                                                *csharp-test-runner-xunit*
+xUnit v3 (`PackageReference Include="xunit.v3"`)
+    `dotnet run --project X -- -noColor -result-ctrf <tmp>`
+    Filters: `-method Ns.Class.Method`, `-class Ns.Class`.
+    xUnit v3 projects run on Microsoft.Testing.Platform, which the .NET 10
+    SDK will not run through `dotnet test` in VSTest mode.
+
+                                               *csharp-test-runner-mstest*
+MSTest (`MSTest.*` package reference or `MSTest.Sdk`)
+    `dotnet test X --logger trx;LogFileName=<tmp>`
+    Filters: `FullyQualifiedName=Ns.Class.Method`, `ClassName=Ns.Class`.
+
+xUnit v2 is not supported. Use |csharp-test-runner-opts-framework_overrides|
+when detection is wrong.
+
+==============================================================================
+7. RESULTS                                        *csharp-test-runner-results*
+
+Virtual text at the end of each test method's name line:
+    `✓ 12ms`             passed
+    `✗ 340ms`            failed
+    `✓ 3 cases 4ms`      every theory or DataRow case passed
+    `✗ 1/3 failed 4ms`   some cases failed
+    `○ skipped`          skipped or not executed
+    `⋯ running`          in progress
+
+Results are stored per method, so files opened after a project or solution
+run show their results too.
+
+                                                *csharp-test-runner-quickfix*
+Failures go to a quickfix list titled "CSTest". Each entry points at the
+failing line from the stack trace, or at the test method when the trace has
+no location. If the build fails, compiler errors go to the list instead, and
+the previous results stay visible.
+
+==============================================================================
+8. OUTPUT WINDOW                                   *csharp-test-runner-output*
+
+`:CSTest output` opens a float with each case's status, message, stack trace
+and captured output. Failed cases come first.
+
+Keys:
+    <CR>    jump to the stack frame under the cursor
+    s       reopen the output in a split
+    q       close
+    <Esc>   close
+
+==============================================================================
+9. HIGHLIGHTS                                  *csharp-test-runner-highlights*
+
+    CSTestPassed    linked to DiagnosticOk
+    CSTestFailed    linked to DiagnosticError
+    CSTestSkipped   linked to DiagnosticWarn
+    CSTestRunning   linked to Comment
+
+They are default links, so colorschemes and |nvim_set_hl()| override them.
+
+==============================================================================
+10. EXAMPLES                                     *csharp-test-runner-examples*
+
+Rerun the whole project when a test file is saved:
+>lua
+require("csharp-test-runner").setup({ keymaps = true, watch_scope = "project" })
+<
+Skip building:
+>lua
+require("csharp-test-runner").setup({ build = false })
+<
+Exclude integration tests from xUnit runs:
+>lua
+require("csharp-test-runner").setup({
+  extra_args = { xunit = { "-trait-", "Category=Integration" } },
+})
+<
+==============================================================================
+11. TROUBLESHOOTING                       *csharp-test-runner-troubleshooting*
+
+"does not reference xunit.v3 or MSTest"
+    The nearest `.csproj` is not a supported test project.
+
+No marks appear
+    Run `:checkhealth csharp-test-runner`. The `c_sharp` parser is required,
+    and methods need one of the configured test attributes.
+
+"run failed"
+    The build failed (see quickfix) or the runner produced no report. Set
+    `debug = true` and run the notified command in a terminal.
+
+Missing console output for xUnit
+    xUnit v3 does not capture `Console.WriteLine` by default. Use
+    `ITestOutputHelper`.
+
+ vim:tw=78:ts=8:ft=help:norl:
