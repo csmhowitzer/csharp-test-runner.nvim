@@ -93,3 +93,42 @@ describe("run_smart", function()
     assert.equals("file", smart_at(7)) -- blank line between tests
   end)
 end)
+
+describe("inherited tests", function()
+  before_each(function()
+    config.setup()
+  end)
+
+  it("map a test in an abstract class to every concrete subclass in the file", function()
+    local tests = locator.tests(h.read("Inherit.cs"))
+    assert.equals(1, #tests)
+    assert.equals("N.Base", tests[1].class)
+    -- Concrete and Other derive directly, Leaf through the abstract Mid; Mid itself is abstract
+    assert.same({ "N.Concrete", "N.Leaf", "N.Other" }, tests[1].classes)
+    assert.same({ "N.Concrete::A", "N.Leaf::A", "N.Other::A" }, locator.keys(tests[1]))
+  end)
+
+  it("keep the declaring class for ordinary tests", function()
+    local tests = locator.tests(h.read("Calc_tests.cs"))
+    assert.same({ "Sample.XUnit.CalcTests" }, tests[1].classes)
+  end)
+
+  it("keep the declaring class when an abstract class has no subclass in the file", function()
+    local tests = locator.tests("namespace X;\npublic abstract class B { [Fact] public void T() { } }")
+    assert.same({ "X.B" }, tests[1].classes)
+  end)
+
+  it("combine results from every subclass when rendering", function()
+    local state = require("csharp-test-runner.state")
+    state.reset()
+    state.store({
+      { class = "N.Concrete", method = "A", name = "N.Concrete.A", status = "passed", duration = 1 },
+      { class = "N.Other", method = "A", name = "N.Other.A", status = "failed", duration = 2 },
+    })
+    local agg = state.get_for({ "N.Concrete", "N.Leaf", "N.Other" }, "A")
+    assert.equals("failed", agg.status)
+    assert.equals(2, agg.total)
+    assert.equals(1, agg.failed)
+    state.reset()
+  end)
+end)

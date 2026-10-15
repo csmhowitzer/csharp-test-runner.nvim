@@ -9,10 +9,11 @@ M.name = "xunit"
 M.report_ext = ".json"
 
 ---@class CSTestSelection
----@field kind "project"|"classes"|"method"
+---@field kind "project"|"classes"|"method"|"methods"
 ---@field classes string[]|nil Fully qualified class names (kind = "classes")
 ---@field class string|nil (kind = "method")
 ---@field method string|nil (kind = "method")
+---@field methods { class: string, method: string }[]|nil (kind = "methods")
 
 ---Builds the command for a run
 ---@param csproj string Path to the test project
@@ -28,6 +29,10 @@ function M.command(csproj, selection, report, opts)
   vim.list_extend(cmd, { "--", "-noColor", "-result-ctrf", report })
   if selection.kind == "method" then
     vim.list_extend(cmd, { "-method", selection.class .. "." .. selection.method })
+  elseif selection.kind == "methods" then
+    for _, m in ipairs(selection.methods) do
+      vim.list_extend(cmd, { "-method", m.class .. "." .. m.method })
+    end
   elseif selection.kind == "classes" then
     for _, class in ipairs(selection.classes) do
       vim.list_extend(cmd, { "-class", class })

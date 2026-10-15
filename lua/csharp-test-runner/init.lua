@@ -2,6 +2,7 @@
 -- Run xUnit v3 and MSTest tests from Neovim with inline results, diagnostics and quickfix
 
 local config = require("csharp-test-runner.config")
+local coverage = require("csharp-test-runner.coverage")
 local locator = require("csharp-test-runner.locator")
 local project = require("csharp-test-runner.project")
 local result = require("csharp-test-runner.result")
@@ -33,7 +34,7 @@ local function loaded_keys(include)
       local path = vim.api.nvim_buf_get_name(bufnr)
       if path ~= "" and include(path) then
         for _, t in ipairs(locator.tests(bufnr)) do
-          table.insert(keys, result.key(t.class, t.method))
+          vim.list_extend(keys, locator.keys(t))
         end
       end
     end
@@ -64,21 +65,153 @@ function M.run_nearest()
   if not p then
     return
   end
-  runner.run(
-    { { project = p, selection = { kind = "method", class = t.class, method = t.method } } },
-    { result.key(t.class, t.method) },
-    t.method
-  )
+  local methods = vim.tbl_map(function(c)
+    return { class = c, method = t.method }
+  end, t.classes)
+  runner.run({ { project = p, selection = { kind = "methods", methods = methods } } }, locator.keys(t), t.method)
 end
 
----Runs the test method under the cursor, or the whole file when the cursor is not inside a test method
+---Runs a set of covering tests, grouped by their test project
+---@param tests CSTestCoveringTest[]
+---@param label string
+local function run_covering_tests(tests, label)
+  local by_project, order = {}, {}
+  for _, t in ipairs(tests) do
+    local p = project.for_file(t.file)
+    if p then
+      if not by_project[p.csproj] then
+        by_project[p.csproj] = { project = p, methods = {} }
+        table.insert(order, p.csproj)
+      end
+      table.insert(by_project[p.csproj].methods, { class = t.class, method = t.method })
+    end
+  end
+  local specs, keys = {}, {}
+  for _, csproj in ipairs(order) do
+    local group = by_project[csproj]
+    table.insert(specs, { project = group.project, selection = { kind = "methods", methods = group.methods } })
+    for _, m in ipairs(group.methods) do
+      table.insert(keys, result.key(m.class, m.method))
+    end
+  end
+  if #specs == 0 then
+    return notify("no runnable tests cover " .. label)
+  end
+  runner.run(specs, keys, string.format("%s (%d covering test%s)", label, #keys, #keys == 1 and "" or "s"))
+end
+
+---Collects the covering tests of a production method (or every method in the file) and hands them to a callback
+---@param bufnr integer
+---@param row integer 0-based
+---@param cb fun(tests: CSTestCoveringTest[], label: string)
+local function with_covering_tests(bufnr, row, cb)
+  local m = locator.method_at(bufnr, row)
+  if m and not m.is_test then
+    return coverage.tests_for(bufnr, m, function(tests)
+      if not tests then
+        return notify("language server is not ready yet (references unavailable)")
+      end
+      if #tests == 0 then
+        return notify("no tests call " .. m.method .. " directly", vim.log.levels.INFO)
+      end
+      cb(tests, m.method)
+    end)
+  end
+  -- not inside a method: every method in the file
+  coverage.refresh(bufnr, { done = function()
+    local entry = coverage.cache[bufnr]
+    local all, seen = {}, {}
+    for _, tests in pairs(entry and entry.methods or {}) do
+      for _, t in ipairs(tests) do
+        local k = result.key(t.class, t.method)
+        if not seen[k] then
+          seen[k] = true
+          table.insert(all, t)
+        end
+      end
+    end
+    if #all == 0 then
+      return notify("no tests call methods in this file directly (or the language server is not ready)")
+    end
+    cb(all, vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t"))
+  end })
+end
+
+---Runs the test method under the cursor, or the whole file when the cursor is not inside a test method.
+---In production code, runs the tests that call the method under the cursor.
 function M.run_smart()
   local bufnr = vim.api.nvim_get_current_buf()
   local row = vim.api.nvim_win_get_cursor(0)[1] - 1
   if locator.nearest(bufnr, row) then
-    M.run_nearest()
+    return M.run_nearest()
+  end
+  if #locator.tests(bufnr) > 0 or coverage.in_test_project(vim.api.nvim_buf_get_name(bufnr)) then
+    return M.run_file(bufnr)
+  end
+  with_covering_tests(bufnr, row, run_covering_tests)
+end
+
+---Lists the tests covering the production method under the cursor in the location list, failures first
+function M.list_covering()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+  with_covering_tests(bufnr, row, function(tests, label)
+    local rank = { failed = 0, running = 1, ["not run"] = 2, skipped = 3, passed = 4 }
+    local items = {}
+    for _, t in ipairs(tests) do
+      local agg = state.get(t.class, t.method)
+      local status = agg and agg.status or "not run"
+      local icon = config.options.icons[status] or "·"
+      table.insert(items, {
+        filename = t.file,
+        lnum = t.line + 1,
+        col = 1,
+        type = status == "failed" and "E" or nil,
+        text = string.format("%s %s.%s", icon, t.class:match("([^%.]+)$") or t.class, t.method),
+        _rank = rank[status] or 5,
+      })
+    end
+    table.sort(items, function(a, b)
+      if a._rank ~= b._rank then
+        return a._rank < b._rank
+      end
+      return a.text < b.text
+    end)
+    vim.fn.setloclist(0, {}, " ", { title = "CSTest covering " .. label, items = items })
+    vim.cmd("lopen")
+  end)
+end
+
+---Whether a buffer is production C# code that coverage counts apply to
+---@param bufnr integer
+---@return boolean
+local function coverage_target(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) or vim.bo[bufnr].filetype ~= "cs" then
+    return false
+  end
+  local path = vim.api.nvim_buf_get_name(bufnr)
+  return path ~= "" and not coverage.in_test_project(path)
+end
+
+---Refreshes coverage for production buffers shown in windows
+local function refresh_visible()
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    local bufnr = vim.api.nvim_win_get_buf(win)
+    if coverage_target(bufnr) then
+      coverage.refresh(bufnr)
+    end
+  end
+end
+
+---Turns test counts on production methods on or off
+function M.toggle_coverage()
+  config.options.coverage.enabled = not config.options.coverage.enabled
+  if config.options.coverage.enabled then
+    refresh_visible()
+    notify("test counts on", vim.log.levels.INFO)
   else
-    M.run_file(bufnr)
+    coverage.clear()
+    notify("test counts off", vim.log.levels.INFO)
   end
 end
 
@@ -96,7 +229,7 @@ function M.run_file(bufnr)
   end
   local keys = {}
   for _, t in ipairs(locator.tests(bufnr)) do
-    table.insert(keys, result.key(t.class, t.method))
+    vim.list_extend(keys, locator.keys(t))
   end
   runner.run(
     { { project = p, selection = { kind = "classes", classes = classes } } },
@@ -147,8 +280,8 @@ function M.output(as_split)
   local row = vim.api.nvim_win_get_cursor(0)[1] - 1
   local t = vim.bo[bufnr].filetype == "cs" and locator.nearest(bufnr, row) or nil
   if t then
-    local cases = state.results[result.key(t.class, t.method)]
-    if cases and #cases > 0 then
+    local cases = state.cases_for(t.classes, t.method)
+    if #cases > 0 then
       -- failures first
       local sorted = vim.deepcopy(cases)
       table.sort(sorted, function(a, b)
@@ -206,6 +339,7 @@ function M.clear()
   state.reset()
   ui.clear_all()
   ui.quickfix({})
+  coverage.render_all()
 end
 
 M.subcommands = {
@@ -230,6 +364,12 @@ M.subcommands = {
   end,
   stop = runner.stop,
   clear = M.clear,
+  covering = function()
+    M.list_covering()
+  end,
+  coverage = function()
+    M.toggle_coverage()
+  end,
 }
 
 ---Sets up the plugin
@@ -265,6 +405,60 @@ function M.setup(opts)
       end
     end,
   })
+  -- coverage counts: computed when a production file is shown, after it is saved, and once the server is ready
+  vim.api.nvim_create_autocmd("BufWinEnter", {
+    group = group,
+    pattern = "*.cs",
+    callback = function(ev)
+      if not config.options.coverage.enabled or not coverage_target(ev.buf) then
+        return
+      end
+      local entry = coverage.cache[ev.buf]
+      -- queries only methods without counts, or everything after a test file changed
+      coverage.refresh(ev.buf, { force = entry ~= nil and entry.stale == true })
+    end,
+  })
+  vim.api.nvim_create_autocmd("BufWritePost", {
+    group = group,
+    pattern = "*.cs",
+    callback = function(ev)
+      if not config.options.coverage.enabled then
+        return
+      end
+      if coverage_target(ev.buf) then
+        coverage.refresh(ev.buf)
+      else
+        -- a test file changed: forget parsed test files; production buffers refresh when shown again
+        coverage.invalidate_files()
+        for bufnr in pairs(coverage.cache) do
+          if vim.fn.bufwinid(bufnr) ~= -1 then
+            coverage.refresh(bufnr, { force = true })
+          else
+            coverage.mark_stale(bufnr)
+          end
+        end
+      end
+    end,
+  })
+  vim.api.nvim_create_autocmd("LspAttach", {
+    group = group,
+    callback = function(ev)
+      if config.options.coverage.enabled and coverage_target(ev.buf) and vim.fn.bufwinid(ev.buf) ~= -1 then
+        coverage.refresh(ev.buf)
+      end
+    end,
+  })
+  vim.api.nvim_create_autocmd("User", {
+    group = group,
+    pattern = "RoslynInitialized",
+    callback = function()
+      if config.options.coverage.enabled then
+        -- the event fires before roslyn.nvim sets its flag
+        vim.schedule(refresh_visible)
+      end
+    end,
+  })
+
   vim.api.nvim_create_autocmd("ColorScheme", {
     group = group,
     callback = ui.define_highlights,
@@ -281,6 +475,8 @@ function M.setup(opts)
       { km.output, M.subcommands.output, "Show test output" },
       { km.watch, M.subcommands.watch, "Toggle run tests on save" },
       { km.stop, M.subcommands.stop, "Stop test run" },
+      { km.covering, M.subcommands.covering, "List tests covering this method" },
+      { km.coverage, M.subcommands.coverage, "Toggle test counts on methods" },
     }
     for _, m in ipairs(maps) do
       if m[1] then

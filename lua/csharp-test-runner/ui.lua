@@ -24,6 +24,7 @@ function M.define_highlights()
   vim.api.nvim_set_hl(0, "CSTestFailed", { link = "DiagnosticError", default = true })
   vim.api.nvim_set_hl(0, "CSTestSkipped", { link = "DiagnosticWarn", default = true })
   vim.api.nvim_set_hl(0, "CSTestRunning", { link = "Comment", default = true })
+  vim.api.nvim_set_hl(0, "CSTestCoverage", { link = "LspCodeLens", default = true })
 end
 
 ---Virtual text for one method
@@ -85,7 +86,7 @@ function M.render(bufnr)
   vim.api.nvim_buf_clear_namespace(bufnr, M.ns, 0, -1)
   local diags = {}
   for _, t in ipairs(locator.tests(bufnr)) do
-    local agg = state.get(t.class, t.method)
+    local agg = state.get_for(t.classes, t.method)
     if agg then
       vim.api.nvim_buf_set_extmark(bufnr, M.ns, t.line, 0, {
         virt_text = { { "  " .. M.label(agg), hl_for[agg.status] } },
@@ -119,13 +120,14 @@ function M.render(bufnr)
   end
 end
 
----Redraws every loaded C# buffer
+---Redraws every loaded C# buffer, including coverage counts (which depend on test results)
 function M.render_all()
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].filetype == "cs" then
       M.render(bufnr)
     end
   end
+  require("csharp-test-runner.coverage").render_all()
 end
 
 ---Removes all marks and diagnostics

@@ -53,6 +53,12 @@ describe("xunit adapter", function()
     local cls = xunit.command("/p/X.csproj", { kind = "classes", classes = { "A.B", "A.C" } }, "/tmp/r.json", opts)
     assert.same({ "-class", "A.B", "-class", "A.C" }, vim.list_slice(cls, #cls - 3))
 
+    local many = xunit.command("/p/X.csproj", {
+      kind = "methods",
+      methods = { { class = "A.B", method = "M" }, { class = "A.C", method = "N" } },
+    }, "/tmp/r.json", opts)
+    assert.same({ "-method", "A.B.M", "-method", "A.C.N" }, vim.list_slice(many, #many - 3))
+
     local nb = xunit.command("/p/X.csproj", { kind = "project" }, "/tmp/r.json", { build = false, extra_args = {} })
     assert.equals("--no-build", nb[5])
   end)
@@ -107,6 +113,11 @@ describe("mstest adapter", function()
     assert.same({ "--filter", "FullyQualifiedName=A.B.M" }, vim.list_slice(one, #one - 1))
     local cls = mstest.command("/p/M.csproj", { kind = "classes", classes = { "A.B", "A.C" } }, "/tmp/r.trx", opts)
     assert.same({ "--filter", "ClassName=A.B|ClassName=A.C" }, vim.list_slice(cls, #cls - 1))
+    local many = mstest.command("/p/M.csproj", {
+      kind = "methods",
+      methods = { { class = "A.B", method = "M" }, { class = "A.C", method = "N" } },
+    }, "/tmp/r.trx", opts)
+    assert.same({ "--filter", "FullyQualifiedName=A.B.M|FullyQualifiedName=A.C.N" }, vim.list_slice(many, #many - 1))
     local all = mstest.command("/p/M.csproj", { kind = "project" }, "/tmp/r.trx", opts)
     assert.same({ "dotnet", "test", "/p/M.csproj", "--logger", "trx;LogFileName=/tmp/r.trx" }, all)
   end)

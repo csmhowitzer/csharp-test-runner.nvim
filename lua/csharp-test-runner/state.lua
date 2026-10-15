@@ -78,6 +78,35 @@ function M.get(class, method)
   return result.aggregate(cases)
 end
 
+---All stored cases for a method under each of its runtime classes
+---@param classes string[]
+---@param method string
+---@return CSTestResult[]
+function M.cases_for(classes, method)
+  local cases = {}
+  for _, c in ipairs(classes) do
+    vim.list_extend(cases, M.results[result.key(c, method)] or {})
+  end
+  return cases
+end
+
+---Aggregated state for a method that runs under several classes (inherited tests)
+---@param classes string[]
+---@param method string
+---@return CSTestAggregate|nil
+function M.get_for(classes, method)
+  for _, c in ipairs(classes) do
+    if M.running[result.key(c, method)] then
+      return { status = "running", duration = 0, total = 0, failed = 0, cases = M.cases_for(classes, method) }
+    end
+  end
+  local cases = M.cases_for(classes, method)
+  if #cases == 0 then
+    return nil
+  end
+  return result.aggregate(cases)
+end
+
 function M.reset()
   M.results = {}
   M.running = {}

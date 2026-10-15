@@ -145,3 +145,15 @@ describe("ui", function()
     assert.equals(28, target.line)
   end)
 end)
+
+describe("result.test_frame for inherited tests", function()
+  it("falls back to the method name when the frame names the base class", function()
+    local f = result.test_frame({
+      class = "Ns.Concrete_Tests",
+      method = "Maps",
+      trace = "   at Ns.BaseTests`1.Maps() in /src/Base_tests.cs:line 40\n   at System.Foo()",
+    })
+    assert.equals("/src/Base_tests.cs", f.file)
+    assert.equals(40, f.line)
+  end)
+end)

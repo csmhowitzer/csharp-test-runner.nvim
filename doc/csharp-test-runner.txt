@@ -16,9 +16,10 @@ CONTENTS                                         *csharp-test-runner-contents*
 6. Frameworks ................... |csharp-test-runner-frameworks|
 7. Results ...................... |csharp-test-runner-results|
 8. Output window ................ |csharp-test-runner-output|
-9. Highlights ................... |csharp-test-runner-highlights|
-10. Examples .................... |csharp-test-runner-examples|
-11. Troubleshooting ............. |csharp-test-runner-troubleshooting|
+9. Coverage ..................... |csharp-test-runner-coverage|
+10. Highlights .................. |csharp-test-runner-highlights|
+11. Examples .................... |csharp-test-runner-examples|
+12. Troubleshooting ............. |csharp-test-runner-troubleshooting|
 
 ==============================================================================
 1. INTRODUCTION                              *csharp-test-runner-introduction*
@@ -104,6 +105,11 @@ framework_overrides Map of `.csproj` file name to "xunit" or "mstest", for
 
 extra_args          Extra arguments appended to the xunit or mstest command.
 
+                                          *csharp-test-runner-opts-coverage*
+coverage            `enabled` shows test counts on production methods (see
+                    |csharp-test-runner-coverage|). `concurrency` caps the
+                    reference requests sent at once (default 4).
+
 float               Border and size (fractions of the editor) of the output
                     window.
 
@@ -115,7 +121,8 @@ keymaps             false (default) sets no keymaps. true sets the defaults
                         nearest  <leader>tn     file     <leader>tf
                         project  <leader>tp     all      <leader>ta
                         output   <leader>to     watch    <leader>tw
-                        stop     <leader>ts
+                        stop     <leader>ts     covering <leader>tl
+                        coverage <leader>tc
 
 debug               Notify the full command of every run.
 
@@ -136,12 +143,17 @@ Command               Lua                                 Description
 `:CSTest output`        `require("csharp-test-runner").output()`        Failure detail
 `:CSTest watch`         `require("csharp-test-runner").toggle_watch()`  Run on save
 `:CSTest stop`          (none)                                Stop the run
+`:CSTest covering`      `require("csharp-test-runner").list_covering()` Covering tests
+`:CSTest coverage`      `require("csharp-test-runner").toggle_coverage()` Toggle counts
 `:CSTest clear`         `require("csharp-test-runner").clear()`         Clear results
 
                                                 *csharp-test-runner-smart*
 smart runs the test method that contains the cursor (see nearest below).
 When the cursor is not inside a test method (on a helper, a field, or a
 blank line between tests) it runs the whole file instead.
+In production code (a file outside any test project) it runs the tests that
+call the method under the cursor, or that call any method in the file when
+the cursor is outside a method. See |csharp-test-runner-coverage|.
 
                                               *csharp-test-runner-nearest*
 nearest runs the method whose range (attributes included) contains the
@@ -185,6 +197,13 @@ output({as_split})                               *csharp-test-runner.output()*
 
 toggle_watch({bufnr})                      *csharp-test-runner.toggle_watch()*
     Toggle run-on-save for {bufnr}.
+
+list_covering()                           *csharp-test-runner.list_covering()*
+    Put the tests covering the production method under the cursor in the
+    location list, failures first, and open it.
+
+toggle_coverage()                       *csharp-test-runner.toggle_coverage()*
+    Turn test counts on production methods on or off.
 
 clear()                                           *csharp-test-runner.clear()*
     Stop any run and clear results, marks, diagnostics and the CSTest
@@ -243,17 +262,43 @@ Keys:
     <Esc>   close
 
 ==============================================================================
-9. HIGHLIGHTS                                  *csharp-test-runner-highlights*
+9. COVERAGE                                      *csharp-test-runner-coverage*
+
+With `coverage = { enabled = true }` each production method that tests call
+shows counts at the end of its line:
+    `12 tests`      before any covering test has run
+    `11 ✓ | 1 ✗`    once results exist (skipped `○` and running `⋯` too)
+
+How it works:
+- The language server is asked for references to each method
+  (`textDocument/references`). References inside xUnit v3 / MSTest projects
+  are mapped to the test method that contains them.
+- Only direct callers count. A test that reaches the method through another
+  method is not counted.
+- Results are the latest of each covering test this session.
+- Requests run in the background, `coverage.concurrency` at a time, when a
+  file is shown and after it is saved. Test runs only redraw the numbers.
+- With roslyn.nvim, counting waits for the `RoslynInitialized` event.
+- LSP code lens is unaffected; the counts are separate marks.
+
+                                         *csharp-test-runner-covering*
+`:CSTest covering` lists the covering tests of the method under the cursor in
+the location list, failures first. In production code, |csharp-test-runner-smart|
+runs them.
+
+==============================================================================
+10. HIGHLIGHTS                                 *csharp-test-runner-highlights*
 
     CSTestPassed    linked to DiagnosticOk
     CSTestFailed    linked to DiagnosticError
     CSTestSkipped   linked to DiagnosticWarn
     CSTestRunning   linked to Comment
+    CSTestCoverage  linked to LspCodeLens
 
 They are default links, so colorschemes and |nvim_set_hl()| override them.
 
 ==============================================================================
-10. EXAMPLES                                     *csharp-test-runner-examples*
+11. EXAMPLES                                     *csharp-test-runner-examples*
 
 Rerun the whole project when a test file is saved:
 >lua
@@ -270,7 +315,7 @@ require("csharp-test-runner").setup({
 })
 <
 ==============================================================================
-11. TROUBLESHOOTING                       *csharp-test-runner-troubleshooting*
+12. TROUBLESHOOTING                       *csharp-test-runner-troubleshooting*
 
 "does not reference xunit.v3 or MSTest"
     The nearest `.csproj` is not a supported test project.
@@ -282,6 +327,11 @@ No marks appear
 "run failed"
     The build failed (see quickfix) or the runner produced no report. Set
     `debug = true` and run the notified command in a terminal.
+
+No test counts on production methods
+    Counts need `coverage.enabled`, an attached language server that answers
+    references, and (with roslyn.nvim) a fully loaded solution. Only methods
+    called directly from test methods get counts.
 
 Missing console output for xUnit
     xUnit v3 does not capture `Console.WriteLine` by default. Use

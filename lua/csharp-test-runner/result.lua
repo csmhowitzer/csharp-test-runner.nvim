@@ -56,9 +56,17 @@ end
 ---@param r CSTestResult
 ---@return CSTestFrame|nil
 function M.test_frame(r)
+  local frames = M.parse_trace(r.trace)
   local needle = (r.class:gsub("%+", ".")) .. "." .. r.method .. "("
-  for _, f in ipairs(M.parse_trace(r.trace)) do
+  for _, f in ipairs(frames) do
     if f.file and f.text:find(needle, 1, true) then
+      return f
+    end
+  end
+  -- inherited tests: the frame names the base class (e.g. "Ns.BaseTests`1.Method("), not the class that ran it
+  local method_needle = "." .. r.method .. "("
+  for _, f in ipairs(frames) do
+    if f.file and f.text:find(method_needle, 1, true) then
       return f
     end
   end

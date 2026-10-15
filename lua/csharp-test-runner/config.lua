@@ -19,6 +19,8 @@ local M = {}
 ---@field output string|false
 ---@field watch string|false
 ---@field stop string|false
+---@field covering string|false
+---@field coverage string|false
 
 ---@class CSTestConfig
 ---@field build boolean Build before running (false adds --no-build)
@@ -31,6 +33,7 @@ local M = {}
 ---@field framework_overrides table<string, CSTestFramework> csproj filename -> framework, when detection is wrong
 ---@field extra_args { xunit: string[], mstest: string[] } Extra arguments appended to each runner command
 ---@field float { border: string, width: number, height: number } Failure output window (fractions of the editor)
+---@field coverage { enabled: boolean, concurrency: integer } Test counts on production methods (uses LSP references)
 ---@field keymaps CSTestKeymaps|false Opt-in keymaps (false disables all)
 ---@field debug boolean Notify the command line of every run
 
@@ -61,6 +64,10 @@ M.defaults = {
     width = 0.8,
     height = 0.6,
   },
+  coverage = {
+    enabled = false,
+    concurrency = 4,
+  },
   keymaps = false,
   debug = false,
 }
@@ -79,6 +86,8 @@ M.default_keymaps = {
   output = "<leader>to",
   watch = "<leader>tw",
   stop = "<leader>ts",
+  covering = "<leader>tl",
+  coverage = "<leader>tc",
 }
 
 ---Merges user options over the defaults

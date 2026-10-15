@@ -12,6 +12,8 @@ Supports **xUnit v3** and **MSTest**, each through the runner that framework act
 - 📋 **Quickfix** list of failures, pointing at the **failing assertion line**, opened automatically
 - 🔍 **Failure detail window**: message, stack trace and captured output. `<CR>` on a frame jumps to it
 - 👀 **Watch mode**: rerun the file (or project) each time a buffer is saved
+- 🧪 **Test counts on production methods**: `19 tests` at the end of each method that tests call, becoming `16 ✓ | 3 ✗` once they have run, through LSP references (opt-in)
+- ▶️ **Run from production code**: `<leader>ty` on a production method runs the tests that call it
 - 🧱 **Build errors** go to quickfix, and the previous results stay visible
 - 🔎 **Automatic framework detection** from the `.csproj`
 - 🏥 `:checkhealth csharp-test-runner`
@@ -89,11 +91,28 @@ lua require("csharp-test-runner").setup()
 | `:CSTest output` | `<leader>to` | Show failure detail for the test under the cursor (or every failure of the last run) |
 | `:CSTest watch` | `<leader>tw` | Toggle run-on-save for the current buffer |
 | `:CSTest stop` | `<leader>ts` | Stop the active run |
+| `:CSTest covering` | `<leader>tl` | List the tests covering the production method under the cursor (location list, failures first) |
+| `:CSTest coverage` | `<leader>tc` | Toggle test counts on production methods |
 | `:CSTest clear` |  | Clear all results, marks and the CSTest quickfix list |
 
-`:CSTest` with no argument runs `smart`. Starting a new run cancels one that is still going.
+`:CSTest` with no argument runs `smart`. In production code (a file outside any test project), `smart` runs the tests that call the method under the cursor, or that call any method in the file when the cursor is outside a method. Starting a new run cancels one that is still going.
 
 In the output window: `<CR>` on a stack frame (or its `-->` line) jumps to that file and line, `s` reopens the output in a split, and `q` / `<Esc>` closes it.
+
+## 🧪 Test counts on production methods
+
+With `coverage = { enabled = true }`, each production method that tests call gets its counts at the end of its line, next to your LSP code lens if you show one:
+
+```
+public Option<T> Some(T value)   12 tests      (before any covering test has run)
+public Option<T> Some(T value)   11 ✓ | 1 ✗    (after)
+```
+
+- Counts come from your language server's **references** (Roslyn, via roslyn.nvim, or any server with `textDocument/references`). References inside xUnit v3 / MSTest projects are mapped to the test method that contains them.
+- They are **direct** only: a test that reaches the method through another method is not counted (yet).
+- Before any covering test has run, the total is shown (`12 tests`). Once results exist only they are shown: passed, failed, and skipped or running when there are any.
+- Requests run in the background a few at a time (`coverage.concurrency`) when a file is shown and after it is saved. Test runs only redraw the numbers. With roslyn.nvim, counting waits until the solution has finished loading.
+- Code lens (e.g. LazyVim's `<leader>cC`) is unaffected. The counts are separate marks.
 
 ## ⚙️ Configuration
 
@@ -111,6 +130,7 @@ require("csharp-test-runner").setup({
   framework_overrides = {},     -- { ["Odd.Tests.csproj"] = "xunit" }
   extra_args = { xunit = {}, mstest = {} },
   float = { border = "rounded", width = 0.8, height = 0.6 },
+  coverage = { enabled = false, concurrency = 4 },
   keymaps = false,              -- true for the defaults above, or a table to override some
   debug = false,                -- notify the command of every run
 })
@@ -132,6 +152,7 @@ require("csharp-test-runner").setup({
 | `CSTestFailed` | `DiagnosticError` |
 | `CSTestSkipped` | `DiagnosticWarn` |
 | `CSTestRunning` | `Comment` |
+| `CSTestCoverage` | `LspCodeLens` |
 
 ## 🧩 API
 
@@ -144,6 +165,8 @@ cst.run_project(bufnr?)
 cst.run_all()
 cst.output(as_split?)
 cst.toggle_watch(bufnr?)
+cst.list_covering()
+cst.toggle_coverage()
 cst.clear()
 ```
 
@@ -173,6 +196,7 @@ require("csharp-test-runner").setup({ extra_args = { xunit = { "-trait-", "Categ
 - **No marks appear**: check `:checkhealth csharp-test-runner`. The `c_sharp` parser is required, and test methods need one of `test_attributes`.
 - **"run failed"**: the build failed (errors are in quickfix) or the runner printed no report. Set `debug = true` to see the exact command and run it in a terminal.
 - **`Console.WriteLine` output is missing for xUnit**: xUnit v3 does not capture console output by default. Use `ITestOutputHelper`.
+- **No test counts on production methods**: counts need `coverage.enabled`, an attached language server with references, and (with roslyn.nvim) a fully loaded solution. Only methods called directly from test methods get counts.
 - **Runs are slow**: most of the time is the build. `build = false` skips it when nothing changed.
 
 ## 🧪 Development

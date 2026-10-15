@@ -4,6 +4,8 @@ csharp-test-runner-all	csharp-test-runner.txt	/*csharp-test-runner-all*
 csharp-test-runner-commands	csharp-test-runner.txt	/*csharp-test-runner-commands*
 csharp-test-runner-configuration	csharp-test-runner.txt	/*csharp-test-runner-configuration*
 csharp-test-runner-contents	csharp-test-runner.txt	/*csharp-test-runner-contents*
+csharp-test-runner-coverage	csharp-test-runner.txt	/*csharp-test-runner-coverage*
+csharp-test-runner-covering	csharp-test-runner.txt	/*csharp-test-runner-covering*
 csharp-test-runner-examples	csharp-test-runner.txt	/*csharp-test-runner-examples*
 csharp-test-runner-frameworks	csharp-test-runner.txt	/*csharp-test-runner-frameworks*
 csharp-test-runner-functions	csharp-test-runner.txt	/*csharp-test-runner-functions*
@@ -13,6 +15,7 @@ csharp-test-runner-introduction	csharp-test-runner.txt	/*csharp-test-runner-intr
 csharp-test-runner-mstest	csharp-test-runner.txt	/*csharp-test-runner-mstest*
 csharp-test-runner-nearest	csharp-test-runner.txt	/*csharp-test-runner-nearest*
 csharp-test-runner-opts-build	csharp-test-runner.txt	/*csharp-test-runner-opts-build*
+csharp-test-runner-opts-coverage	csharp-test-runner.txt	/*csharp-test-runner-opts-coverage*
 csharp-test-runner-opts-framework_overrides	csharp-test-runner.txt	/*csharp-test-runner-opts-framework_overrides*
 csharp-test-runner-opts-icons	csharp-test-runner.txt	/*csharp-test-runner-opts-icons*
 csharp-test-runner-opts-keymaps	csharp-test-runner.txt	/*csharp-test-runner-opts-keymaps*
@@ -27,6 +30,7 @@ csharp-test-runner-troubleshooting	csharp-test-runner.txt	/*csharp-test-runner-t
 csharp-test-runner-watch	csharp-test-runner.txt	/*csharp-test-runner-watch*
 csharp-test-runner-xunit	csharp-test-runner.txt	/*csharp-test-runner-xunit*
 csharp-test-runner.clear()	csharp-test-runner.txt	/*csharp-test-runner.clear()*
+csharp-test-runner.list_covering()	csharp-test-runner.txt	/*csharp-test-runner.list_covering()*
 csharp-test-runner.nvim	csharp-test-runner.txt	/*csharp-test-runner.nvim*
 csharp-test-runner.output()	csharp-test-runner.txt	/*csharp-test-runner.output()*
 csharp-test-runner.run_all()	csharp-test-runner.txt	/*csharp-test-runner.run_all()*
@@ -35,6 +39,7 @@ csharp-test-runner.run_nearest()	csharp-test-runner.txt	/*csharp-test-runner.run
 csharp-test-runner.run_project()	csharp-test-runner.txt	/*csharp-test-runner.run_project()*
 csharp-test-runner.run_smart()	csharp-test-runner.txt	/*csharp-test-runner.run_smart()*
 csharp-test-runner.setup()	csharp-test-runner.txt	/*csharp-test-runner.setup()*
+csharp-test-runner.toggle_coverage()	csharp-test-runner.txt	/*csharp-test-runner.toggle_coverage()*
 csharp-test-runner.toggle_watch()	csharp-test-runner.txt	/*csharp-test-runner.toggle_watch()*
 csharp-test-runner.txt	csharp-test-runner.txt	/*csharp-test-runner.txt*
 cstest	csharp-test-runner.txt	/*cstest*

@@ -29,6 +29,12 @@ function M.command(csproj, selection, report, opts)
   if selection.kind == "method" then
     -- FullyQualifiedName excludes DataRow arguments, so this matches every row of the method
     filter = "FullyQualifiedName=" .. filter_escape(selection.class .. "." .. selection.method)
+  elseif selection.kind == "methods" then
+    local parts = {}
+    for _, t in ipairs(selection.methods) do
+      table.insert(parts, "FullyQualifiedName=" .. filter_escape(t.class .. "." .. t.method))
+    end
+    filter = table.concat(parts, "|")
   elseif selection.kind == "classes" then
     local parts = {}
     for _, class in ipairs(selection.classes) do
