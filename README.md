@@ -109,7 +109,8 @@ public Option<T> Some(T value)   11 ✓ | 1 ✗    (after)
 ```
 
 - Counts come from your language server's **references** (Roslyn, via roslyn.nvim, or any server with `textDocument/references`). References inside xUnit v3 / MSTest projects are mapped to the test method that contains them.
-- They are **direct** only: a test that reaches the method through another method is not counted (yet).
+- They are counted like Visual Studio's **Tested By** lens: tests that call the method **directly**, one per **test case**. A theory counts once per `[InlineData]` / `[DataRow]` row before it runs, and once per actual case after (so `[MemberData]` rows count once they have run).
+- Like Visual Studio, tests declared in an abstract base class are not counted on production methods. They still get their own ✓/✗ (combined across subclasses) in the test file.
 - Before any covering test has run, the total is shown (`12 tests`). Once results exist only they are shown: passed, failed, and skipped or running when there are any.
 - Requests run in the background a few at a time (`coverage.concurrency`) when a file is shown and after it is saved. Test runs only redraw the numbers. With roslyn.nvim, counting waits until the solution has finished loading.
 - Code lens (e.g. LazyVim's `<leader>cC`) is unaffected. The counts are separate marks.
@@ -196,7 +197,7 @@ require("csharp-test-runner").setup({ extra_args = { xunit = { "-trait-", "Categ
 - **No marks appear**: check `:checkhealth csharp-test-runner`. The `c_sharp` parser is required, and test methods need one of `test_attributes`.
 - **"run failed"**: the build failed (errors are in quickfix) or the runner printed no report. Set `debug = true` to see the exact command and run it in a terminal.
 - **`Console.WriteLine` output is missing for xUnit**: xUnit v3 does not capture console output by default. Use `ITestOutputHelper`.
-- **No test counts on production methods**: counts need `coverage.enabled`, an attached language server with references, and (with roslyn.nvim) a fully loaded solution. Only methods called directly from test methods get counts.
+- **No test counts on production methods**: counts need `coverage.enabled`, an attached language server with references, and (with roslyn.nvim) a fully loaded solution. Only tests that call a method directly count (not tests that reach it through other methods), and calls made through an interface are attributed to the interface member, not to its implementations.
 - **Runs are slow**: most of the time is the build. `build = false` skips it when nothing changed.
 
 ## 🧪 Development

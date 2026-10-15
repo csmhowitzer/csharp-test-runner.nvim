@@ -12,6 +12,9 @@ local M = {}
 ---@field start_row integer 0-based first row of the method (including attributes)
 ---@field end_row integer 0-based last row of the method
 ---@field is_test boolean Whether the method has a test attribute
+---@field kind "method"|"constructor"|"property"|"local_function"
+---@field cases integer Test cases known before running: the number of [InlineData]/[DataRow] rows, else 1
+---@field in_abstract boolean Declared in an abstract class (an inherited test: it runs under the subclasses)
 ---@field classes string[] Classes the test runs under: the class itself, or for a test declared in an abstract
 ---class, every concrete subclass in the same file (the test runner reports inherited tests under those)
 
@@ -32,15 +35,19 @@ local function text(node, source)
   return vim.treesitter.get_node_text(node, source)
 end
 
----Whether a method has one of the configured test attributes
+local row_attributes = { InlineData = true, DataRow = true }
+
+---Whether a method has one of the configured test attributes, and how many data rows it declares
 ---@param method TSNode
 ---@param source CSTestSource
----@return boolean
-local function is_test(method, source)
+---@return boolean is_test
+---@return integer rows Number of [InlineData]/[DataRow] attributes
+local function test_info(method, source)
   local wanted = {}
   for _, a in ipairs(config.options.test_attributes) do
     wanted[a] = true
   end
+  local found, rows = false, 0
   for child in method:iter_children() do
     if child:type() == "attribute_list" then
       for attr in child:iter_children() do
@@ -50,14 +57,16 @@ local function is_test(method, source)
             local name = text(name_node, source):match("([%w_]+)$") or ""
             name = name:gsub("Attribute$", "")
             if wanted[name] then
-              return true
+              found = true
+            elseif row_attributes[name] then
+              rows = rows + 1
             end
           end
         end
       end
     end
   end
-  return false
+  return found, rows
 end
 
 ---Finds the file-scoped namespace of the file, if any (its classes are siblings, not children)
@@ -208,10 +217,17 @@ local function runtime_classes(fqn, types)
   return #concrete > 0 and concrete or { fqn }
 end
 
----Returns every method in a source, test or not
+local member_kinds = {
+  method_declaration = "method",
+  constructor_declaration = "constructor",
+  property_declaration = "property",
+}
+
+---Collects members of a source
 ---@param source CSTestSource
+---@param include_other boolean Include constructors and properties (callers can live there), not only methods
 ---@return CSTestLocation[]
-function M.methods(source)
+local function collect(source, include_other)
   local root = root_of(source)
   if not root then
     return {}
@@ -223,32 +239,84 @@ function M.methods(source)
 
   local function walk(node)
     for child in node:iter_children() do
-      if child:type() == "method_declaration" then
+      local kind = member_kinds[child:type()]
+      if kind and (kind == "method" or include_other) then
         local name = child:field("name")[1]
         local class = qualified_class(child, source, file_ns)
         if name and class then
           local start_row, _, end_row = child:range()
           local line, col = name:range()
           runtime[class] = runtime[class] or runtime_classes(class, types)
-          table.insert(found, {
+          local test, rows = false, 0
+          if kind == "method" then
+            test, rows = test_info(child, source)
+          end
+          local entry = {
             class = class,
             method = text(name, source),
             line = line,
             col = col,
             start_row = start_row,
             end_row = end_row,
-            is_test = is_test(child, source),
+            is_test = test,
+            cases = math.max(rows, 1),
+            in_abstract = types[class] ~= nil and types[class].abstract,
+            kind = kind,
             classes = runtime[class],
-          })
+          }
+          table.insert(found, entry)
+          if include_other then
+            -- local functions are their own callers: Visual Studio does not credit their calls to the enclosing test
+            local function locals(node)
+              for inner in node:iter_children() do
+                if inner:type() == "local_function_statement" then
+                  local lname = inner:field("name")[1]
+                  if lname then
+                    local ls, _, le = inner:range()
+                    local ll, lc = lname:range()
+                    table.insert(found, {
+                      class = class,
+                      method = text(lname, source),
+                      line = ll,
+                      col = lc,
+                      start_row = ls,
+                      end_row = le,
+                      is_test = false,
+                      cases = 1,
+                      in_abstract = false,
+                      kind = "local_function",
+                      classes = runtime[class],
+                    })
+                  end
+                end
+                locals(inner)
+              end
+            end
+            locals(child)
+          end
         end
-        -- local functions can't be tests, so method bodies are not searched
-      else
+        -- lambdas are attributed to the member that contains them
+      elseif not kind then
         walk(child)
       end
     end
   end
   walk(root)
   return found
+end
+
+---Returns every method in a source, test or not
+---@param source CSTestSource
+---@return CSTestLocation[]
+function M.methods(source)
+  return collect(source, false)
+end
+
+---Returns every method, constructor, property and local function in a source (the places a call can come from)
+---@param source CSTestSource
+---@return CSTestLocation[]
+function M.members(source)
+  return collect(source, true)
 end
 
 ---Returns every test method in a source

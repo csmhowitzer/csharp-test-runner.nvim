@@ -22,6 +22,10 @@ local M = {}
 ---@field covering string|false
 ---@field coverage string|false
 
+---@class CSTestCoverageConfig
+---@field enabled boolean
+---@field concurrency integer Reference requests sent at once
+
 ---@class CSTestConfig
 ---@field build boolean Build before running (false adds --no-build)
 ---@field icons CSTestIcons Glyphs used in virtual text
@@ -33,7 +37,7 @@ local M = {}
 ---@field framework_overrides table<string, CSTestFramework> csproj filename -> framework, when detection is wrong
 ---@field extra_args { xunit: string[], mstest: string[] } Extra arguments appended to each runner command
 ---@field float { border: string, width: number, height: number } Failure output window (fractions of the editor)
----@field coverage { enabled: boolean, concurrency: integer } Test counts on production methods (uses LSP references)
+---@field coverage CSTestCoverageConfig Test counts on production methods (uses LSP references)
 ---@field keymaps CSTestKeymaps|false Opt-in keymaps (false disables all)
 ---@field debug boolean Notify the command line of every run
 

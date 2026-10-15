@@ -63,7 +63,7 @@ describe("coverage", function()
     assert.equals("Sample.XUnit.CalcTests", tests[1].class)
   end)
 
-  it("counts covering tests by their latest result", function()
+  it("counts covering test cases by their latest result", function()
     state.store({
       { class = "A", method = "P", name = "P", status = "passed", duration = 1 },
       { class = "A", method = "F", name = "F", status = "failed", duration = 1 },
@@ -91,10 +91,10 @@ describe("coverage", function()
     local methods = locator.methods(bufnr)
     local ids = coverage.method_ids(methods)
     -- what refresh() stores once references answer: both Add overloads are called from two tests
-    coverage.cache[bufnr] = { methods = {} }
+    coverage.cache[bufnr] = { direct = {} }
     for _, m in ipairs(methods) do
       local locs = m.method == "Add" and { loc(test_file, 10), loc(test_file, 26) } or {}
-      coverage.cache[bufnr].methods[ids[m]] = coverage.tests_from_locations(locs)
+      coverage.cache[bufnr].direct[ids[m]] = coverage.tests_from_locations(locs)
     end
     coverage.render(bufnr)
     local marks = vim.api.nvim_buf_get_extmarks(bufnr, coverage.ns, 0, -1, { details = true })
@@ -103,13 +103,13 @@ describe("coverage", function()
     local text = table.concat(vim.tbl_map(function(ch)
       return ch[1]
     end, marks[1][4].virt_text))
-    assert.equals("  2 tests", text)
+    assert.equals("  3 tests", text) -- FailsEqual (1 case) + TheoryMixed (2 [InlineData] rows)
   end)
 
   it("hides counts when coverage is disabled", function()
     vim.cmd("edit " .. root .. "/App/Calc.cs")
     local bufnr = vim.api.nvim_get_current_buf()
-    coverage.cache[bufnr] = { methods = { ["Sample.App.Calc::Add#1"] = { { class = "A", method = "B" } } } }
+    coverage.cache[bufnr] = { direct = { ["Sample.App.Calc::Add#1"] = { { class = "A", method = "B" } } } }
     config.options.coverage.enabled = false
     coverage.render(bufnr)
     assert.equals(0, #vim.api.nvim_buf_get_extmarks(bufnr, coverage.ns, 0, -1, {}))
@@ -231,11 +231,88 @@ describe("coverage refresh", function()
     local finished = false
     coverage.refresh(bufnr, { done = function() finished = true end })
     vim.wait(1000, function() return finished end)
-    assert.is_not_nil(coverage.cache[bufnr].methods["Sample.App.Calc::Untested#1"])
+    assert.is_not_nil(coverage.cache[bufnr].direct["Sample.App.Calc::Untested#1"])
     vim.api.nvim_buf_set_lines(bufnr, 8, 9, false, {}) -- delete Untested
     finished = false
     coverage.refresh(bufnr, { done = function() finished = true end })
     vim.wait(1000, function() return finished end)
-    assert.is_nil(coverage.cache[bufnr].methods["Sample.App.Calc::Untested#1"])
+    assert.is_nil(coverage.cache[bufnr].direct["Sample.App.Calc::Untested#1"])
+  end)
+end)
+
+describe("case counting", function()
+  before_each(function()
+    config.setup({ coverage = { enabled = true } })
+    state.reset()
+  end)
+
+  it("counts data rows before a theory has run, and real cases after", function()
+    local tests = locator.tests(h.read("Calc_tests.cs"))
+    local theory
+    for _, t in ipairs(tests) do
+      if t.method == "TheoryMixed" then theory = t end
+    end
+    assert.equals(2, theory.cases) -- two [InlineData] rows
+    local covering = { { class = "Sample.XUnit.CalcTests", method = "TheoryMixed", cases = 2 },
+      { class = "Sample.XUnit.CalcTests", method = "Adds", cases = 1 } }
+    assert.equals(3, coverage.counts(covering).total)
+    state.store({
+      { class = "Sample.XUnit.CalcTests", method = "TheoryMixed", name = "a", status = "passed", duration = 1 },
+      { class = "Sample.XUnit.CalcTests", method = "TheoryMixed", name = "b", status = "failed", duration = 1 },
+      { class = "Sample.XUnit.CalcTests", method = "TheoryMixed", name = "c", status = "passed", duration = 1 },
+    })
+    local c = coverage.counts(covering)
+    assert.equals(4, c.total) -- 3 real cases (e.g. [MemberData]) + Adds not yet run
+    assert.equals(2, c.passed)
+    assert.equals(1, c.failed)
+  end)
+
+  it("counts DataRow rows for MSTest", function()
+    local rows
+    for _, t in ipairs(locator.tests(h.read("CalcTests.cs"))) do
+      if t.method == "RowsMixed" then rows = t.cases end
+    end
+    assert.equals(2, rows)
+  end)
+end)
+
+describe("abstract base tests", function()
+  it("are not counted on production methods, like Visual Studio", function()
+    config.setup({ coverage = { enabled = true } })
+    coverage.clear()
+    local dir = vim.fn.tempname()
+    vim.fn.mkdir(dir, "p")
+    vim.fn.writefile(vim.split(h.read("XProj.csproj"), "\n"), dir .. "/T.csproj")
+    vim.fn.writefile(vim.split(h.read("Inherit.cs"), "\n"), dir .. "/Inherit.cs")
+    -- a reference inside Base<T>.A (row 3) and one inside a concrete class that is not a test (row 5)
+    local tests = coverage.tests_from_locations({ loc(dir .. "/Inherit.cs", 3), loc(dir .. "/Inherit.cs", 5) })
+    assert.same({}, tests)
+  end)
+end)
+
+describe("local functions", function()
+  it("do not credit their calls to the enclosing test, like Visual Studio", function()
+    config.setup({ coverage = { enabled = true } })
+    coverage.clear()
+    local dir = vim.fn.tempname()
+    vim.fn.mkdir(dir, "p")
+    vim.fn.writefile(vim.split(h.read("XProj.csproj"), "\n"), dir .. "/T.csproj")
+    vim.fn.writefile({
+      "namespace N;",
+      "public class LocalTests",
+      "{",
+      "    [Fact]",
+      "    public void UsesLocal()",
+      "    {",
+      "        int Helper(int x) => Calc.Add(x, 1);",
+      "        Assert.Equal(2, Helper(1));",
+      "        Assert.Equal(3, Calc.Add(1, 2));",
+      "    }",
+      "}",
+    }, dir .. "/LocalTests.cs")
+    -- row 6: inside the local function; row 8: in the test body itself
+    assert.same({}, coverage.tests_from_locations({ loc(dir .. "/LocalTests.cs", 6) }))
+    local direct = coverage.tests_from_locations({ loc(dir .. "/LocalTests.cs", 8) })
+    assert.equals("UsesLocal", direct[1].method)
   end)
 end)

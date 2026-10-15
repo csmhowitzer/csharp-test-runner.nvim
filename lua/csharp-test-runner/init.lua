@@ -112,26 +112,16 @@ local function with_covering_tests(bufnr, row, cb)
         return notify("language server is not ready yet (references unavailable)")
       end
       if #tests == 0 then
-        return notify("no tests call " .. m.method .. " directly", vim.log.levels.INFO)
+        return notify("no tests reach " .. m.method, vim.log.levels.INFO)
       end
       cb(tests, m.method)
     end)
   end
   -- not inside a method: every method in the file
   coverage.refresh(bufnr, { done = function()
-    local entry = coverage.cache[bufnr]
-    local all, seen = {}, {}
-    for _, tests in pairs(entry and entry.methods or {}) do
-      for _, t in ipairs(tests) do
-        local k = result.key(t.class, t.method)
-        if not seen[k] then
-          seen[k] = true
-          table.insert(all, t)
-        end
-      end
-    end
+    local all = coverage.known_tests(bufnr)
     if #all == 0 then
-      return notify("no tests call methods in this file directly (or the language server is not ready)")
+      return notify("no tests reach methods in this file (or the language server is not ready)")
     end
     cb(all, vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t"))
   end })
@@ -426,7 +416,7 @@ function M.setup(opts)
         return
       end
       if coverage_target(ev.buf) then
-        coverage.refresh(ev.buf)
+        coverage.on_production_save(ev.buf)
       else
         -- a test file changed: forget parsed test files; production buffers refresh when shown again
         coverage.invalidate_files()
